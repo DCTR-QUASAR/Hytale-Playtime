@@ -1,6 +1,7 @@
 use chrono::NaiveDateTime;
 use std::fs;
 use std::io::{self, BufRead};
+use std::path::PathBuf;
 
 fn main() {
     // 1. Find the platform-specific Hytale log folder
@@ -26,38 +27,35 @@ fn main() {
             // Only process files ending in .log
             if path.extension().and_then(|s| s.to_str()) == Some("log") {
                 // Open the file or skip to the next one if it fails
-                let Ok(file) = fs::File::open(&path) else {
-                    continue;
-                };
+                if let Ok(file) = fs::File::open(&path) {
+                    let reader = io::BufReader::new(file);
+                    let mut last_time: Option<NaiveDateTime> = None;
+                    let mut file_contributed = false;
 
-                let reader = io::BufReader::new(file);
-                let lines: Vec<String> = reader.lines().map_while(Result::ok).collect();
+                    // Hytale format: 2026-01-13 14:03:42.9604|DEBUG|...
+                    let fmt = "%Y-%m-%d %H:%M:%S";
 
-                // Need at least a start and end line to calculate duration
-                if lines.len() < 2 {
-                    continue;
-                }
+                    for line_result in reader.lines() {
+                        let Ok(line) = line_result else { continue };
+                        
+                        // Extract the first 19 characters (ignores milliseconds for simple math)
+                        if let Some(timestamp_str) = line.get(..19) {
+                            if let Ok(current_time) = NaiveDateTime::parse_from_str(timestamp_str, fmt) {
+                                if let Some(previous) = last_time {
+                                    let delta = current_time.signed_duration_since(previous).num_seconds();
 
-                // Hytale format: 2026-01-13 14:03:42.9604|DEBUG|...
-                let fmt = "%Y-%m-%d %H:%M:%S";
-
-                let start_line = &lines[0];
-                let end_line = &lines[lines.len() - 1];
-
-                // Extract the first 19 characters (ignores milliseconds for simple math)
-                if let (Some(s_str), Some(e_str)) = (start_line.get(..19), end_line.get(..19)) {
-                    let start_dt = NaiveDateTime::parse_from_str(s_str, fmt);
-                    let end_dt = NaiveDateTime::parse_from_str(e_str, fmt);
-
-                    if let (Ok(s), Ok(e)) = (start_dt, end_dt) {
-                        // Calculate difference between first and last timestamp in the file
-                        let duration = e.signed_duration_since(s).num_seconds();
-
-                        // Add to total if the duration is valid
-                        if duration > 0 {
-                            total_seconds += duration;
-                            files_processed += 1;
+                                    // Add to total if the duration is valid and within a 5-minute activity window
+                                    if delta > 0 && delta < 300 {
+                                        total_seconds += delta;
+                                        file_contributed = true;
+                                    }
+                                }
+                                last_time = Some(current_time);
+                            }
                         }
+                    }
+                    if file_contributed {
+                        files_processed += 1;
                     }
                 }
             }
