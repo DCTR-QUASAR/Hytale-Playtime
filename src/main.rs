@@ -1,7 +1,6 @@
 use chrono::NaiveDateTime;
 use std::fs;
 use std::io::{self, BufRead};
-use std::path::PathBuf;
 
 fn main() {
     // 1. Find the platform-specific Hytale log folder
@@ -37,22 +36,21 @@ fn main() {
 
                     for line in reader.lines().map_while(Result::ok) {
                         // Extract the first 19 characters (ignores milliseconds for simple math)
-                        if let Some(timestamp_str) = line.get(..19) {
-                            if let Ok(current_time) =
+                        if let Some(timestamp_str) = line.get(..19)
+                            && let Ok(current_time) =
                                 NaiveDateTime::parse_from_str(timestamp_str, fmt)
-                            {
-                                if let Some(previous) = last_time {
-                                    let delta =
-                                        current_time.signed_duration_since(previous).num_seconds();
+                        {
+                            if let Some(previous) = last_time {
+                                let delta =
+                                    current_time.signed_duration_since(previous).num_seconds();
 
-                                    // Add to total if the duration is valid and within a 5-minute activity window
-                                    if (1..300).contains(&delta) {
-                                        total_seconds += delta;
-                                        file_contributed = true;
-                                    }
+                                // Add to total if the duration is valid and within a 5-minute activity window
+                                if (1..300).contains(&delta) {
+                                    total_seconds += delta;
+                                    file_contributed = true;
                                 }
-                                last_time = Some(current_time);
                             }
+                            last_time = Some(current_time);
                         }
                     }
                     if file_contributed {
