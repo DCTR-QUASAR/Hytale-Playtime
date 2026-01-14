@@ -17,6 +17,7 @@ jobs:
   lint:
     name: Lint & Format
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust
@@ -40,7 +41,7 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: target/release/Hytale-Playtime.exe # Double-check the casing/name matches your Cargo.toml
+          files: target/release/Hytale-Playtime.exe
           body: "Hytale Playtime Tracker Release! Just download the .exe below and run it."
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
