@@ -8,3 +8,10 @@ chrono = "0.4"
 dirs = "5.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+
+[profile.release]
+opt-level = 3        # Maximum optimizations
+lto = true           # Link Time Optimization (creates a more logical code flow)
+codegen-units = 1    # Reduces parallel build units for a more coherent binary
+panic = 'abort'      # Removes complex "unwinding" code often flagged by heuristics
+strip = "symbols"    # Removes debug metadata to look like a clean production file
