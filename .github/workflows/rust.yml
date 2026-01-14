@@ -1,0 +1,46 @@
+name: Hytale Playtime CI
+
+on:
+  push:
+    branches: [ "main" ]
+    tags: [ "v*" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+permissions:
+  contents: write
+
+jobs:
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        run: rustup update stable && rustup component add rustfmt clippy
+      - name: Check Formatting
+        run: cargo fmt --all -- --check
+      - name: Run Clippy
+        run: cargo clippy -- -D warnings
+
+  release:
+    name: Build & Release
+    needs: lint
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Build Release Binary
+        run: cargo build --release
+        
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: target/release/Hytale-Playtime.exe # Double-check the casing/name matches your Cargo.toml
+          body: "Hytale Playtime Tracker Release! Just download the .exe below and run it."
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
