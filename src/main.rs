@@ -35,17 +35,18 @@ fn main() {
                     // Hytale format: 2026-01-13 14:03:42.9604|DEBUG|...
                     let fmt = "%Y-%m-%d %H:%M:%S";
 
-                    for line_result in reader.lines() {
-                        let Ok(line) = line_result else { continue };
-                        
+                    for line in reader.lines().map_while(Result::ok) {
                         // Extract the first 19 characters (ignores milliseconds for simple math)
                         if let Some(timestamp_str) = line.get(..19) {
-                            if let Ok(current_time) = NaiveDateTime::parse_from_str(timestamp_str, fmt) {
+                            if let Ok(current_time) =
+                                NaiveDateTime::parse_from_str(timestamp_str, fmt)
+                            {
                                 if let Some(previous) = last_time {
-                                    let delta = current_time.signed_duration_since(previous).num_seconds();
+                                    let delta =
+                                        current_time.signed_duration_since(previous).num_seconds();
 
                                     // Add to total if the duration is valid and within a 5-minute activity window
-                                    if delta > 0 && delta < 300 {
+                                    if (1..300).contains(&delta) {
                                         total_seconds += delta;
                                         file_contributed = true;
                                     }
