@@ -36,10 +36,9 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Build Release Binary
-        run: cargo build --release --locked
+        run: cargo build --release
         
       - name: Generate Checksum
-        # Powershell command to create a SHA256 hash file for the release
         run: |
           Get-FileHash target/release/Hytale-Playtime.exe -Algorithm SHA256 | ForEach-Object { $_.Hash + "  Hytale-Playtime.exe" } | Out-File -FilePath SHA256SUMS.txt -Encoding utf8
 
@@ -50,8 +49,9 @@ jobs:
             target/release/Hytale-Playtime.exe
             SHA256SUMS.txt
           body: |
-            ## Hytale Playtime Tracker Release
-            Verify your download using the provided SHA256SUMS.txt.
+            After the v3 patch to increase the accuracy, a better CI release workflow was implemented to prevent windows defender flags due to rustup.
+            
+            **Verification:** Verify your download using the provided SHA256SUMS.txt.
             
             **Note:** If Windows Defender flags this file, it is a false positive due to it being a new, unsigned Rust binary. You can report it to Microsoft for verification at the [Microsoft Security Intelligence Portal](www.microsoft.com).
         env:
