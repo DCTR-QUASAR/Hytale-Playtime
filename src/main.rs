@@ -1,6 +1,14 @@
 use chrono::NaiveDateTime;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::io::{self, BufRead};
+
+#[derive(Serialize, Deserialize, Default)]
+struct PlaytimeCache {
+    files: HashMap<String, i64>,
+    total_permanent_seconds: i64,
+}
 
 fn main() {
     // 1. Find the platform-specific Hytale log folder
@@ -15,7 +23,12 @@ fn main() {
         return;
     };
 
-    let mut total_seconds: i64 = 0;
+    let cache_path = "playtime_cache.json";
+    let mut cache: PlaytimeCache = fs::read_to_string(cache_path)
+        .ok()
+        .and_then(|content| serde_json::from_str(&content).ok())
+        .unwrap_or_default();
+
     let mut files_processed = 0;
 
     // Scan the directory for log files
@@ -25,11 +38,13 @@ fn main() {
 
             // Only process files ending in .log
             if path.extension().and_then(|s| s.to_str()) == Some("log") {
+                let file_name = path.file_name().unwrap().to_string_lossy().into_owned();
+
                 // Open the file or skip to the next one if it fails
                 if let Ok(file) = fs::File::open(&path) {
                     let reader = io::BufReader::new(file);
                     let mut last_time: Option<NaiveDateTime> = None;
-                    let mut file_contributed = false;
+                    let mut file_seconds = 0;
 
                     // Hytale format: 2026-01-13 14:03:42.9604|DEBUG|...
                     let fmt = "%Y-%m-%d %H:%M:%S";
@@ -46,19 +61,27 @@ fn main() {
 
                                 // Add to total if the duration is valid and within a 5-minute activity window
                                 if (1..300).contains(&delta) {
-                                    total_seconds += delta;
-                                    file_contributed = true;
+                                    file_seconds += delta;
                                 }
                             }
                             last_time = Some(current_time);
                         }
                     }
-                    if file_contributed {
-                        files_processed += 1;
+
+                    let saved_seconds = cache.files.get(&file_name).cloned().unwrap_or(0);
+                    if file_seconds > saved_seconds {
+                        let difference = file_seconds - saved_seconds;
+                        cache.total_permanent_seconds += difference;
+                        cache.files.insert(file_name, file_seconds);
                     }
+                    files_processed += 1;
                 }
             }
         }
+    }
+
+    if let Ok(json) = serde_json::to_string_pretty(&cache) {
+        let _ = fs::write(cache_path, json);
     }
 
     // Display the results
@@ -66,9 +89,9 @@ fn main() {
     println!("Found {} log files in {:?}", files_processed, log_path);
     println!(
         "TOTAL PLAYTIME: {} hours, {} minutes, {} seconds",
-        total_seconds / 3600,
-        (total_seconds % 3600) / 60,
-        total_seconds % 60
+        cache.total_permanent_seconds / 3600,
+        (cache.total_permanent_seconds % 3600) / 60,
+        cache.total_permanent_seconds % 60
     );
     println!("-------------------------------------------");
 
