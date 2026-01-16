@@ -47,7 +47,8 @@ jobs:
         shell: pwsh
         run: |
           $text = Get-Content "$Env:GITHUB_WORKSPACE\RELEASE_SUMMARY.txt" -Raw
-          echo "::set-output name=text::$text"
+          $encoded = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($text))
+          echo "::set-output name=text::$encoded"
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -56,7 +57,7 @@ jobs:
             target/release/Hytale-Playtime.exe
             SHA256SUMS.txt
           body: |
-            ${{ steps.summary.outputs.text }}
+            $([System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('${{ steps.summary.outputs.text }}')))
 
             **Verification:** Verify your download using the provided SHA256SUMS.txt.
             **Note:** If Windows Defender flags this file, it is a false positive due to it being a new, unsigned Rust binary. You can report it to Microsoft for verification at the [Microsoft Security Intelligence Portal](www.microsoft.com)
