@@ -39,16 +39,24 @@ jobs:
         run: cargo build --release
 
       - name: Generate Checksum
+        shell: pwsh
         run: |
-          Get-FileHash target/release/Hytale-Playtime.exe -Algorithm SHA256 | ForEach-Object { $_.Hash + "  Hytale-Playtime.exe" } | Out-File -FilePath SHA256SUMS.txt -Encoding utf8
+          $fileHash = (Get-FileHash target/release/Hytale-Playtime.exe -Algorithm SHA256).Hash
+          "$fileHash  Hytale-Playtime.exe" | Out-File -FilePath SHA256SUMS.txt -Encoding utf8
 
       - name: Read Release Summary
         id: summary
         shell: pwsh
         run: |
-          $text = Get-Content "$Env:GITHUB_WORKSPACE\RELEASE_SUMMARY.txt" -Raw
-          $encoded = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($text))
-          echo "::set-output name=text::$encoded"
+          $path = "$Env:GITHUB_WORKSPACE/RELEASE_SUMMARY.txt"
+          if (Test-Path $path) {
+              $content = Get-Content $path -Raw
+              "text<<EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+              $content | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+              "EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          } else {
+              "text=New release of Hytale Playtime." | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          }
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -57,9 +65,10 @@ jobs:
             target/release/Hytale-Playtime.exe
             SHA256SUMS.txt
           body: |
-            $([System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('${{ steps.summary.outputs.text }}')))
+            ${{ steps.summary.outputs.text }}
 
+            ---
             **Verification:** Verify your download using the provided SHA256SUMS.txt.
-            **Note:** If Windows Defender flags this file, it is a false positive due to it being a new, unsigned Rust binary. You can report it to Microsoft for verification at the [Microsoft Security Intelligence Portal](www.microsoft.com)
+            **Note:** If Windows Defender flags this file, it is a false positive due to it being a new, unsigned Rust binary. You can report it to Microsoft for verification at the [Microsoft Security Intelligence Portal](https://www.microsoft.com/en-us/wdsi/filesubmission).
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
