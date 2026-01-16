@@ -34,13 +34,20 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Build Release Binary
         run: cargo build --release
-        
+
       - name: Generate Checksum
         run: |
           Get-FileHash target/release/Hytale-Playtime.exe -Algorithm SHA256 | ForEach-Object { $_.Hash + "  Hytale-Playtime.exe" } | Out-File -FilePath SHA256SUMS.txt -Encoding utf8
+
+      - name: Read Release Summary
+        id: summary
+        shell: pwsh
+        run: |
+          $text = Get-Content RELEASE_SUMMARY.txt -Raw
+          echo "::set-output name=text::$text"
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -49,10 +56,9 @@ jobs:
             target/release/Hytale-Playtime.exe
             SHA256SUMS.txt
           body: |
-            After the v3 patch to increase the accuracy, a better CI release workflow was implemented to prevent windows defender flags due to rustup.
-            
+            ${{ steps.summary.outputs.text }}
+
             **Verification:** Verify your download using the provided SHA256SUMS.txt.
-            
-            **Note:** If Windows Defender flags this file, it is a false positive due to it being a new, unsigned Rust binary. You can report it to Microsoft for verification at the [Microsoft Security Intelligence Portal](www.microsoft.com).
+            **Note:** If Windows Defender flags this file, it is a false positive due to it being a new, unsigned Rust binary. You can report it to Microsoft for verification at the [Microsoft Security Intelligence Portal](www.microsoft.com)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
