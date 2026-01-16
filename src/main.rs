@@ -29,7 +29,7 @@ fn main() {
         .and_then(|content| serde_json::from_str(&content).ok())
         .unwrap_or_default();
 
-    let mut files_processed = 0;
+    let mut total_sessions = 0; // count real sessions
 
     // Scan the directory for log files
     if let Ok(entries) = fs::read_dir(&log_path) {
@@ -74,7 +74,10 @@ fn main() {
                         cache.total_permanent_seconds += difference;
                         cache.files.insert(file_name, file_seconds);
                     }
-                    files_processed += 1;
+
+                    if file_seconds > 0 {
+                        total_sessions += 1; // count this as one session
+                    }
                 }
             }
         }
@@ -84,14 +87,27 @@ fn main() {
         let _ = fs::write(cache_path, json);
     }
 
+    // calculate average session in seconds
+    let avg_session = if total_sessions > 0 {
+        cache.total_permanent_seconds / total_sessions
+    } else {
+        0
+    };
+
     // Display the results
     println!("-------------------------------------------");
-    println!("Found {} log files in {:?}", files_processed, log_path);
     println!(
         "TOTAL PLAYTIME: {} hours, {} minutes, {} seconds",
         cache.total_permanent_seconds / 3600,
         (cache.total_permanent_seconds % 3600) / 60,
         cache.total_permanent_seconds % 60
+    );
+    println!("TOTAL SESSIONS: {}", total_sessions); // how many times you played
+    println!(
+        "AVERAGE SESSION: {} hours, {} minutes, {} seconds",
+        avg_session / 3600,
+        (avg_session % 3600) / 60,
+        avg_session % 60
     );
     println!("-------------------------------------------");
 
