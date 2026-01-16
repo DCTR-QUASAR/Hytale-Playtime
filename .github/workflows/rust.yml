@@ -46,7 +46,7 @@ jobs:
         id: summary
         shell: pwsh
         run: |
-          $text = Get-Content RELEASE_SUMMARY.txt -Raw
+          $text = Get-Content "$Env:GITHUB_WORKSPACE\RELEASE_SUMMARY.txt" -Raw
           echo "::set-output name=text::$text"
 
       - name: Create Release
